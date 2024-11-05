@@ -1,0 +1,159 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+  <meta charset="UTF-8">
+  <meta name="viewport" content="width=device-width, initial-scale=1.0">
+  <title>Learning Dot Explorer</title>
+  <style>
+    body {
+      font-family: Arial, sans-serif;
+      overflow: hidden;
+      margin: 0;
+      position: relative;
+    }
+
+    #dot {
+      width: 20px;
+      height: 20px;
+      background-color: black;
+      border-radius: 50%;
+      position: absolute;
+      top: 50px;
+      left: 50px;
+      z-index: 1;
+    }
+
+    .wall {
+      position: absolute;
+      border-radius: 5px;
+    }
+
+    .green-wall {
+      background-color: green;
+    }
+
+    .blue-wall {
+      background-color: blue;
+    }
+
+    #inputArea {
+      position: fixed;
+      bottom: 0;
+      width: 100%;
+      padding: 10px;
+      background-color: #f0f0f0;
+      border-top: 1px solid #ccc;
+      box-sizing: border-box;
+      z-index: 2;
+    }
+
+    #message {
+      font-weight: bold;
+      color: #333;
+    }
+  </style>
+</head>
+<body>
+
+<div id="dot"></div>
+<div id="inputArea">
+  <input type="text" id="inputText" placeholder="Type here to communicate with the dot..." autocomplete="off" style="width: 80%;">
+  <button onclick="sendMessage()">Send</button>
+  <p id="message">The dot is exploring...</p>
+</div>
+
+<script>
+  const dot = document.getElementById("dot");
+  let walls = [];
+  let knowledge = {};  // Dictionary to store learned behaviors
+  const wallSize = 50;
+  let dotSpeed = 2;
+  let direction = { x: Math.random() > 0.5 ? 1 : -1, y: Math.random() > 0.5 ? 1 : -1 };
+
+  // Movement logic with random direction change
+  function moveDot() {
+    const dotRect = dot.getBoundingClientRect();
+
+    // Randomly change direction slightly every now and then
+    if (Math.random() < 0.02) {
+      direction.x = (Math.random() > 0.5 ? 1 : -1) * (Math.random() + 0.5);
+      direction.y = (Math.random() > 0.5 ? 1 : -1) * (Math.random() + 0.5);
+    }
+
+    // Collision detection with walls
+    for (let wall of walls) {
+      let wallRect = wall.getBoundingClientRect();
+      if (dotRect.right > wallRect.left && dotRect.left < wallRect.right &&
+          dotRect.bottom > wallRect.top && dotRect.top < wallRect.bottom) {
+
+        // Get wall color and check the dot's "knowledge" about it
+        const wallColor = wall.classList.contains("green-wall") ? "green" : "blue";
+        const behavior = knowledge[`${wallColor} walls`];
+
+        if (behavior === "breakable") {
+          wall.remove();
+          walls = walls.filter(w => w !== wall);
+          document.getElementById("message").textContent = `The dot broke a ${wallColor} wall!`;
+        } else if (behavior === "safe") {
+          // Safe walls allow the dot to pass through without bouncing
+          document.getElementById("message").textContent = `The dot passed safely through a ${wallColor} wall.`;
+        } else {
+          // Bounce off wall if it's not known to be safe or breakable
+          direction.x = -direction.x;
+          direction.y = -direction.y;
+        }
+        break;
+      }
+    }
+
+    // Move dot and check window boundaries
+    dot.style.left = dot.offsetLeft + direction.x * dotSpeed + "px";
+    dot.style.top = dot.offsetTop + direction.y * dotSpeed + "px";
+
+    if (dot.offsetLeft <= 0 || dot.offsetLeft >= window.innerWidth - dot.offsetWidth) {
+      direction.x = -direction.x;
+    }
+    if (dot.offsetTop <= 0 || dot.offsetTop >= window.innerHeight - dot.offsetHeight) {
+      direction.y = -direction.y;
+    }
+
+    requestAnimationFrame(moveDot);
+  }
+
+  // Start animation
+  requestAnimationFrame(moveDot);
+
+  // Click to create walls
+  document.addEventListener("click", function(e) {
+    if (e.target.id === "inputText" || e.target.tagName === "BUTTON") return;
+
+    const wallType = Math.random() > 0.5 ? "green-wall" : "blue-wall";
+    let wall = document.createElement("div");
+    wall.classList.add("wall", wallType);
+    wall.style.width = wallSize + "px";
+    wall.style.height = wallSize + "px";
+    wall.style.left = e.pageX - wallSize / 2 + "px";
+    wall.style.top = e.pageY - wallSize / 2 + "px";
+    document.body.appendChild(wall);
+    walls.push(wall);
+  });
+
+  // Function to send messages
+  function sendMessage() {
+    const input = document.getElementById("inputText").value.toLowerCase();
+    document.getElementById("inputText").value = "";
+
+    // Interpret input in the form "[object] are [attribute]"
+    const match = input.match(/(\w+ walls?)\s+are\s+(\w+)/);
+    if (match) {
+      const [_, object, attribute] = match;
+      knowledge[object] = attribute;
+      document.getElementById("message").textContent = `The dot has learned that ${object} are ${attribute}.`;
+    } else {
+      document.getElementById("message").textContent = "The dot didn't understand your message.";
+    }
+  }
+</script>
+
+</body>
+</html>
